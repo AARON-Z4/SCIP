@@ -1,0 +1,11 @@
+{
+    "buildCommand": "cd smart-complaint-resolver-main && npm install && npm run build",
+    "outputDirectory": "smart-complaint-resolver-main/dist",
+    "installCommand": "echo 'install handled in buildCommand'",
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}
