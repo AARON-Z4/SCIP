@@ -3,7 +3,18 @@
  * All calls go through here. JWT is injected automatically.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8003";
+const BASE_URL = (() => {
+    const url = import.meta.env.VITE_API_URL;
+    if (!url) {
+        // This will appear in Vercel function logs and browser console
+        console.error(
+            "[SCIS] VITE_API_URL is not set!\n" +
+            "  → All authentication API calls will fail.\n" +
+            "  → Set this in Vercel: Dashboard → Project → Settings → Environment Variables"
+        );
+    }
+    return url || "http://localhost:8003"; // localhost is dev-only
+})();
 
 // ─── Token Storage ─────────────────────────────────────────────────────────
 
