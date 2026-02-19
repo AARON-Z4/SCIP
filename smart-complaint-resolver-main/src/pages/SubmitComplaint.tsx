@@ -92,7 +92,8 @@ export default function SubmitComplaint() {
     const newErrors: Errors = {};
     if (!form.category || form.category === "Select a category")
       newErrors.category = "Please select a category";
-    if (!form.location.trim()) newErrors.location = "Location is required";
+    if (!form.location.trim() || form.location.trim().length < 3)
+      newErrors.location = "Location must be at least 3 characters";
     if (!form.title.trim()) newErrors.title = "Complaint title is required";
     if (form.description.trim().length < 30)
       newErrors.description = "Description must be at least 30 characters";
