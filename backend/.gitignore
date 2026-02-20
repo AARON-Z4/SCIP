@@ -7,3 +7,7 @@ build/
 .venv/
 venv/
 .pytest_cache/
+*.log
+*.txt.bak
+results.txt
+test_results.txt
