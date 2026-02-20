@@ -11,7 +11,8 @@ from config import get_settings
 from database import get_supabase
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-bearer_scheme = HTTPBearer()
+# auto_error=False: return 401 instead of 422 when Authorization header is missing
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 # ─── Password ─────────────────────────────────────────────────────────────────
@@ -55,6 +56,13 @@ def decode_token(token: str) -> dict:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict:
+    # Reject immediately if no Authorization header was sent
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated. Please sign in to continue.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     token = credentials.credentials
     user_id = None
     
