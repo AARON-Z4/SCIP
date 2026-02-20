@@ -1,17 +1,20 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from config import get_settings
 from routes import auth, complaints, admin
 
-settings = get_settings()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: could add database checks here
     print("[INFO] Backend is starting up...")
+    try:
+        get_settings()  # Validate all env vars on startup
+        print("[INFO] All environment variables loaded successfully.")
+    except Exception as e:
+        print(f"[ERROR] Missing environment variables: {e}")
+        raise
     yield
-    # Shutdown
     print("[INFO] Backend is shutting down...")
 
 app = FastAPI(
@@ -22,10 +25,17 @@ app = FastAPI(
 )
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
-# Allow all origins for development to prevent preflight failures
+# allow_origins=["*"] + allow_credentials=True is rejected by browsers.
+# Use explicit origin list from env var.
+_frontend_url = os.getenv("FRONTEND_URL", "http://localhost:8080")
+CORS_ORIGINS = [
+    _frontend_url,
+    "http://localhost:8080",
+    "http://localhost:5173",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
