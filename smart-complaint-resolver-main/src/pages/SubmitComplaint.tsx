@@ -112,13 +112,32 @@ export default function SubmitComplaint() {
     setLoading(true);
 
     try {
+      // Upload images to Supabase Storage and collect public URLs
+      const uploadedUrls: string[] = [];
+      if (form.images.length > 0) {
+        const { supabase } = await import("@/lib/supabase");
+        for (const file of form.images) {
+          const ext = file.name.split(".").pop();
+          const path = `complaints/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+          const { data, error } = await supabase.storage
+            .from("complaint-images")
+            .upload(path, file, { upsert: false });
+          if (!error && data) {
+            const { data: urlData } = supabase.storage
+              .from("complaint-images")
+              .getPublicUrl(data.path);
+            if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl);
+          }
+        }
+      }
+
       const result: AnalysisResult = await complaintsApi.submit({
         title: form.title,
         description: form.description,
         category: form.category,
         location: form.location,
         priority: form.priority as "low" | "medium" | "high",
-        image_urls: [],  // Images uploaded separately in future
+        image_urls: uploadedUrls,
       });
 
       // Store result for the downstream pages to consume
@@ -134,6 +153,7 @@ export default function SubmitComplaint() {
       setLoading(false);
     }
   };
+
 
   // Not logged in — show a prompt
   if (!isAuthenticated) {
