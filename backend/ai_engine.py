@@ -16,9 +16,15 @@ import google.generativeai as genai
 from config import get_settings
 from typing import Optional
 
-# Configure Gemini once at module load
-_settings = get_settings()
-genai.configure(api_key=_settings.gemini_api_key)
+# Configure Gemini lazily on first use (avoids startup crash if key is missing)
+_genai_configured = False
+
+def _ensure_genai_configured():
+    global _genai_configured
+    if not _genai_configured:
+        s = get_settings()
+        genai.configure(api_key=s.gemini_api_key)
+        _genai_configured = True
 
 
 # ─── Embedding ────────────────────────────────────────────────────────────────
@@ -28,6 +34,7 @@ def generate_embedding(text: str) -> list[float]:
     Generate a semantic embedding vector using Gemini text-embedding-004.
     Returns a list of 768 floats.
     """
+    _ensure_genai_configured()
     result = genai.embed_content(
         model="models/text-embedding-004",
         content=text,
