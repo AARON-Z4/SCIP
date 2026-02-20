@@ -58,6 +58,7 @@ async def submit_complaint(
     existing_result = db.table("complaints")\
         .select("id, reference_id, title, description, category, location, status, created_at, embedding")\
         .neq("status", "rejected")\
+        .limit(500)\
         .execute()
     existing = existing_result.data or []
 

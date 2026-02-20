@@ -38,6 +38,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState("");
 
   const fetchData = async () => {
     try {
@@ -48,8 +49,9 @@ export default function AdminDashboard() {
       ]);
       setStats(statsData);
       setComplaints(complaintsData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch admin data", error);
+      setFetchError(error?.message || "Failed to load dashboard data. Check your connection and try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -74,6 +76,18 @@ export default function AdminDashboard() {
         <div className="flex flex-col items-center gap-2">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-destructive font-medium mb-2">Dashboard Error</p>
+          <p className="text-sm text-muted-foreground mb-4">{fetchError}</p>
+          <button onClick={fetchData} className="text-primary text-sm underline">Retry</button>
         </div>
       </div>
     );
