@@ -8,6 +8,7 @@ import {
     useContext,
     useState,
     useEffect,
+    useRef,
     ReactNode,
 } from "react";
 import {
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(getStoredUser());
     const [token, setTokenState] = useState<string | null>(getToken());
     const [isLoading, setIsLoading] = useState(!!getToken() && !getStoredUser());
+    const isSyncing = useRef(false); // prevents race between initAuth & onAuthStateChange
 
     // On mount: check Supabase session & existing token
     useEffect(() => {
@@ -51,6 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             if (session?.access_token) {
+                if (isSyncing.current) return; // already syncing from onAuthStateChange
+                isSyncing.current = true;
                 console.log("[AuthContext] Found Supabase session token. Syncing with backend...");
                 setToken(session.access_token);
                 setTokenState(session.access_token);
@@ -59,11 +63,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(u);
                     setStoredUser(u);
                     console.log("[AuthContext] Sync successful. User:", u.email);
-                } catch (e) {
+                } catch (e: any) {
                     console.error("[AuthContext] Sync failed during initAuth:", e);
-                    // Don't log out immediately, might be a transient network error
+                    // Only clear token on explicit auth rejection (401/403), not on network errors
+                    if (e?.message?.includes("401") || e?.message?.includes("403")) {
+                        removeToken();
+                        setUser(null);
+                        setTokenState(null);
+                    }
                 } finally {
                     setIsLoading(false);
+                    isSyncing.current = false;
                 }
                 return; // session handled
             }
@@ -98,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.log("[AuthContext] Auth State Change:", event, !!session);
 
             if (event === 'SIGNED_IN' && session) {
+                if (isSyncing.current) return; // initAuth already handling this
+                isSyncing.current = true;
                 console.log("[AuthContext] SIGNED_IN event. Syncing...");
                 setToken(session.access_token);
                 setTokenState(session.access_token);
@@ -108,6 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     console.log("[AuthContext] Auth State Change sync successful.");
                 } catch (e) {
                     console.error("[AuthContext] Sync failed during onAuthStateChange:", e);
+                } finally {
+                    isSyncing.current = false;
                 }
             } else if (event === 'SIGNED_OUT') {
                 console.log("[AuthContext] SIGNED_OUT event.");
