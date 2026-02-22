@@ -147,15 +147,29 @@ def check_duplicate(
     threshold: float = 0.75,
 ) -> Optional[dict]:
     """
-    Check if the new complaint is a duplicate of any existing complaint.
-
-    Args:
-        existing_complaints: list of dicts with keys:
-            id, reference_id, title, description, category, location,
-            status, created_at, embedding (list[float] or None)
+    Determine whether a new complaint duplicates any complaint in a provided list.
+    
+    Parameters:
+        new_title (str): Title of the new complaint.
+        new_description (str): Description of the new complaint.
+        new_category (str): Category of the new complaint.
+        new_location (str): Location of the new complaint.
+        existing_complaints (list[dict]): Candidate complaints to compare against. Each dict should include keys: 
+            `id`, `reference_id`, `title`, `description`, `category`, `location`, `status`, `created_at`, and 
+            `embedding` (a list[float] or a JSON string representing the embedding). Items with missing or unparsable 
+            embeddings are skipped.
+        threshold (float): Minimum combined similarity score required to consider a complaint a duplicate.
     
     Returns:
-        Best matching complaint dict with similarity metadata, or None.
+        dict or None: If a duplicate is found, returns a dictionary with keys:
+            - `complaint`: the matching existing complaint dict
+            - `similarity_score`: combined similarity score (rounded)
+            - `text_similarity`: text embedding cosine similarity (rounded)
+            - `location_similarity`: location overlap score (rounded)
+            - `category_match`: boolean indicating category equality
+            - `factor_scores`: breakdown of component scores
+            - `reasoning`: human-readable explanation of the match
+        Returns `None` if no existing complaint meets the threshold.
     """
     if not existing_complaints:
         return None

@@ -12,6 +12,19 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 def register(body: RegisterRequest):
+    """
+    Register a new user account and return an access token with the created user's public data.
+    
+    Parameters:
+        body (RegisterRequest): Registration payload containing `email`, `password`, and `full_name`.
+    
+    Returns:
+        TokenResponse: Object containing `access_token` and a `user` object (id, email, full_name, role, created_at).
+    
+    Raises:
+        HTTPException: Raised with status 409 if the email is already registered.
+        HTTPException: Raised with status 500 if user creation fails.
+    """
     db = get_supabase()
 
     # Check if email already exists
@@ -53,6 +66,18 @@ def register(body: RegisterRequest):
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest):
+    """
+    Authenticate a user and return an access token along with the authenticated user's public data.
+    
+    Parameters:
+        body (LoginRequest): Credentials containing the user's email and password.
+    
+    Returns:
+        TokenResponse: Contains `access_token` and a `user` object with id, email, full_name, role, and created_at.
+    
+    Raises:
+        HTTPException: with status code 401 if the email or password is invalid.
+    """
     db = get_supabase()
 
     result = db.table("profiles").select("*").eq("email", body.email).single().execute()
@@ -79,6 +104,12 @@ def login(body: LoginRequest):
 
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: dict = Depends(get_current_user)):
+    """
+    Provide the authenticated user's public profile as a UserOut.
+    
+    Returns:
+        UserOut: Public user profile containing `id`, `email`, `full_name`, `role`, and `created_at`.
+    """
     return UserOut(
         id=current_user["id"],
         email=current_user["email"],
