@@ -20,6 +20,12 @@ router = APIRouter(prefix="/complaints", tags=["Complaints"])
 
 
 def _make_reference_id() -> str:
+    """
+    Generate a human-readable complaint reference identifier.
+    
+    Returns:
+        reference_id (str): A string in the format "GRV-{year}-{8_HEX_CHARS}" where {year} is the current UTC year and {8_HEX_CHARS} is an uppercase, 8-character hexadecimal segment derived from a random UUID.
+    """
     year = datetime.now(timezone.utc).year
     short = uuid.uuid4().hex[:8].upper()
     return f"GRV-{year}-{short}"
@@ -51,6 +57,20 @@ def submit_complaint(
     body: ComplaintCreate,
     current_user: dict = Depends(get_current_user),
 ):
+    """
+    Process a complaint submission by checking for duplicates and saving a new complaint when appropriate.
+    
+    If an existing similar complaint is found, a duplicate link is recorded and an AnalysisResult with is_duplicate=True and a DuplicateMatch is returned. If no duplicate is detected, an embedding is generated and a new complaint record is inserted; the insertion will be retried up to 3 times to handle ID/reference collisions before failing.
+    
+    Parameters:
+        body (ComplaintCreate): The complaint data submitted by the user.
+    
+    Returns:
+        AnalysisResult: When a duplicate is detected, contains is_duplicate=True and a `duplicate_match` describing the matched complaint and similarity metrics; when saved successfully, contains is_duplicate=False and the saved complaint as a ComplaintOut.
+    
+    Raises:
+        HTTPException: Status 500 if a database error occurs during insertion, or if saving fails after retrying due to ID/reference collisions.
+    """
     db = get_supabase()
     settings = get_settings()
 
@@ -157,6 +177,18 @@ def submit_complaint(
 
 @router.get("/track/{reference_id}", response_model=ComplaintOut)
 def track_complaint(reference_id: str):
+    """
+    Retrieve a complaint by its reference ID.
+    
+    Parameters:
+        reference_id (str): The complaint reference ID (lookup is case-insensitive; the value is uppercased before querying).
+    
+    Returns:
+        ComplaintOut: The complaint record matching the provided reference ID.
+    
+    Raises:
+        HTTPException: 404 if no complaint with the given reference ID is found.
+    """
     db = get_supabase()
     result = db.table("complaints")\
         .select("*")\
@@ -174,6 +206,12 @@ def track_complaint(reference_id: str):
 
 @router.get("/my", response_model=list[ComplaintListOut])
 def my_complaints(current_user: dict = Depends(get_current_user)):
+    """
+    Retrieve the current user's complaints ordered by newest first.
+    
+    Returns:
+        A list of complaint records, each with the fields `id`, `reference_id`, `title`, `category`, `location`, `priority`, `status`, `created_at`, and `updated_at`; returns an empty list if the user has no complaints.
+    """
     db = get_supabase()
     result = db.table("complaints")\
         .select("id, reference_id, title, category, location, priority, status, created_at, updated_at")\
@@ -188,6 +226,22 @@ def my_complaints(current_user: dict = Depends(get_current_user)):
 
 @router.get("/{complaint_id}/comments")
 def get_comments(complaint_id: str):
+    """
+    Retrieve and normalize comments for a complaint, ordered from oldest to newest.
+    
+    Parameters:
+        complaint_id (str): Identifier of the complaint whose comments will be fetched.
+    
+    Returns:
+        list[dict]: A list of comment dictionaries with keys:
+            - id: comment id
+            - complaint_id: associated complaint id
+            - author_id: id of the comment author
+            - author_name: author's full name (defaults to "Unknown" if missing)
+            - author_role: author's role (defaults to "citizen" if missing)
+            - content: comment text
+            - created_at: timestamp when the comment was created
+    """
     db = get_supabase()
     result = db.table("complaint_comments")\
         .select("*, profiles(full_name, role)")\

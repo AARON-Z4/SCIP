@@ -44,6 +44,19 @@ interface Errors {
   [key: string]: string;
 }
 
+/**
+ * Render the complaint submission form and manage its state, validation, image uploads, and submission flow.
+ *
+ * This component:
+ * - Shows a sign-in prompt when the user is not authenticated and navigates to auth routes.
+ * - Collects complaint details (category, location, title, description, priority) and up to three images.
+ * - Validates inputs, uploads images to Supabase Storage, submits the complaint via the complaints API,
+ *   stores the returned AnalysisResult in sessionStorage under `analysisResult`, and navigates to either
+ *   the duplicate or registered result page based on the response.
+ * - Surfaces API and upload errors to the user and prevents submission if image uploads are incomplete.
+ *
+ * @returns The rendered complaint submission form as a JSX element.
+ */
 export default function SubmitComplaint() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();

@@ -57,6 +57,19 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict:
     # Reject immediately if no Authorization header was sent
+    """
+    Retrieve the authenticated user's profile by validating the provided bearer token and, if necessary, creating a profile record for first-time OAuth users.
+    
+    This dependency accepts an HTTP Bearer token, attempts local JWT decoding to obtain the user id, falls back to Supabase Auth token verification if decoding fails, and looks up the corresponding record in the "profiles" table. If the profile is missing, the function attempts a lazy creation using Supabase admin user data and then re-fetches the profile.
+    
+    Returns:
+        The profile record (dict) retrieved from the "profiles" table.
+    
+    Raises:
+        HTTPException: 401 Not authenticated. Please sign in to continue. — when no Authorization header is provided.
+        HTTPException: 401 Invalid authentication credentials — when the token cannot be validated by either local JWT decoding or Supabase Auth.
+        HTTPException: 401 User profile not found. Please contact support. — when the profile is not present after a lazy creation attempt.
+    """
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -131,6 +144,15 @@ def get_current_user(
 
 
 def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    """
+    Ensure the current user has an admin role.
+    
+    Returns:
+        The `current_user` dictionary when the user's role is "admin".
+    
+    Raises:
+        HTTPException: 403 Forbidden when the user's role is not "admin".
+    """
     if current_user.get("role") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

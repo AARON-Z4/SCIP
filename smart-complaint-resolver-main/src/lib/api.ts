@@ -140,7 +140,14 @@ export interface AdminStats {
     by_priority: Record<string, number>;
 }
 
-// ─── Core Fetch Wrapper ────────────────────────────────────────────────────
+/**
+ * Sends an HTTP request to the API base URL, attaching the stored auth token when present and returning the parsed JSON response.
+ *
+ * @param path - Path appended to the configured BASE_URL (for example, "/auth/me").
+ * @param options - Fetch RequestInit options; headers provided here are merged with defaults and an `Authorization` header is added if a token exists.
+ * @returns The parsed JSON response body, or `undefined` for 204 No Content.
+ * @throws Error when the response status is not ok; the error message is taken from the response `detail` or `message` field when available, otherwise `HTTP <status>`.
+ */
 
 async function apiFetch<T>(
     path: string,

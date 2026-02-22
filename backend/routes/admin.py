@@ -18,6 +18,22 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 
 @router.get("/stats", response_model=AdminStats)
 def get_stats(_: dict = Depends(require_admin)):
+    """
+    Compute aggregated admin statistics for complaints and duplicate links.
+    
+    Builds totals and distributions from the complaints table and counts duplicate link records. Computed fields include total complaints, number resolved, number pending (registered or verified), number in progress (assigned or in_progress), count of duplicate links, average resolution time in days for resolved complaints (rounded to 1 decimal, or `None` if unavailable), and breakdowns by category and priority.
+    
+    Returns:
+        AdminStats: Summary object with the following fields:
+            - total: total number of complaints.
+            - resolved: number of complaints with status "resolved".
+            - pending: number of complaints with status "registered" or "verified".
+            - in_progress: number of complaints with status "assigned" or "in_progress".
+            - duplicates_caught: count of entries in the duplicate_links table.
+            - avg_resolution_days: average days between creation and resolution for resolved complaints, or `None` if not computable.
+            - by_category: mapping of category name to complaint count.
+            - by_priority: mapping of priority level to complaint count.
+    """
     db = get_supabase()
 
     # All complaints
@@ -88,6 +104,22 @@ def list_complaints(
     limit: int = Query(20, ge=1, le=100),
     _: dict = Depends(require_admin),
 ):
+    """
+    List complaint summaries with optional filters and pagination.
+    
+    Parameters:
+        status (str | None): Filter results to complaints with this status.
+        priority (str | None): Filter results to complaints with this priority.
+        category (str | None): Filter results to complaints in this category.
+        page (int): 1-based page number of results to return.
+        limit (int): Maximum number of items per page (1–100).
+    
+    Returns:
+        list: A list of complaint summary objects containing the fields
+        `id`, `reference_id`, `title`, `category`, `location`, `priority`,
+        `status`, `created_at`, and `updated_at`. Returns an empty list when no
+        complaints match the query.
+    """
     db = get_supabase()
     query = db.table("complaints")\
         .select("id, reference_id, title, category, location, priority, status, created_at, updated_at")\
@@ -109,6 +141,18 @@ def list_complaints(
 
 @router.get("/complaints/{complaint_id}")
 def get_complaint(complaint_id: str, _: dict = Depends(require_admin)):
+    """
+    Retrieve a complaint record by its ID.
+    
+    Parameters:
+        complaint_id (str): The UUID of the complaint to retrieve.
+    
+    Returns:
+        dict: The complaint record data.
+    
+    Raises:
+        HTTPException: 404 if no complaint with the given ID exists.
+    """
     db = get_supabase()
     result = db.table("complaints").select("*").eq("id", complaint_id).single().execute()
     if not result.data:
@@ -124,6 +168,19 @@ def update_status(
     body: StatusUpdate,
     current_user: dict = Depends(require_admin),
 ):
+    """
+    Update a complaint's status and create an automatic system comment recording the change.
+    
+    Parameters:
+        complaint_id (str): ID of the complaint to update.
+        body (StatusUpdate): New status and optional note to attach as a comment.
+        
+    Raises:
+        HTTPException: 404 if the complaint with `complaint_id` does not exist.
+    
+    Returns:
+        dict: A confirmation object with a `message` string describing the new status.
+    """
     db = get_supabase()
 
     # Verify complaint exists
@@ -158,6 +215,19 @@ def add_comment(
     body: CommentCreate,
     current_user: dict = Depends(get_current_user),
 ):
+    """
+    Create a new comment for the specified complaint and return the created comment record.
+    
+    Parameters:
+    	complaint_id (str): The ID of the complaint to attach the comment to.
+    	body (CommentCreate): Payload containing the comment content.
+    
+    Returns:
+    	CommentOut: The newly created comment including id, complaint_id, author metadata (id, name, role), content, and created_at timestamp.
+    
+    Raises:
+    	HTTPException: Raised with status code 500 if inserting the comment into the database fails.
+    """
     db = get_supabase()
     now = datetime.now(timezone.utc).isoformat()
     comment_id = str(uuid.uuid4())
@@ -192,6 +262,16 @@ def list_duplicates(
     limit: int = Query(20, ge=1, le=100),
     _: dict = Depends(require_admin),
 ):
+    """
+    List duplicate link records with pagination.
+    
+    Parameters:
+    	page (int): 1-based page number.
+    	limit (int): Maximum number of records to return per page (1–100).
+    
+    Returns:
+    	duplicates (list[dict]): List of duplicate link records; empty list if none.
+    """
     db = get_supabase()
     result = db.table("duplicate_links")\
         .select("*")\
