@@ -158,6 +158,10 @@ async function apiFetch<T>(
     const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
 
     if (!res.ok) {
+        if (res.status === 401 && !path.includes("/auth/login")) {
+            removeToken();
+            window.location.href = "/signin";
+        }
         let errorMsg = `HTTP ${res.status}`;
         try {
             const body = await res.json();

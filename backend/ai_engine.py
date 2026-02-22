@@ -138,7 +138,7 @@ def build_reasoning(
 
 # ─── Main Duplicate Check ─────────────────────────────────────────────────────
 
-async def check_duplicate(
+def check_duplicate(
     new_title: str,
     new_description: str,
     new_category: str,

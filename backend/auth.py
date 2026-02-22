@@ -53,7 +53,7 @@ def decode_token(token: str) -> dict:
 
 # ─── Dependency: get current user ──────────────────────────────────────────────
 
-async def get_current_user(
+def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict:
     # Reject immediately if no Authorization header was sent
@@ -130,7 +130,7 @@ async def get_current_user(
     return result.data
 
 
-async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
     if current_user.get("role") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

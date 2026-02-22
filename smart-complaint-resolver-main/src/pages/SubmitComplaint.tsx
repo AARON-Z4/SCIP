@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import {
   Upload, X, MapPin, Tag, FileText, User, Phone, Mail,
@@ -127,7 +128,13 @@ export default function SubmitComplaint() {
               .from("complaint-images")
               .getPublicUrl(data.path);
             if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl);
+          } else {
+            toast.error(`Image "${file.name}" failed to upload`);
           }
+        }
+        if (uploadedUrls.length !== form.images.length) {
+          setLoading(false);
+          return;
         }
       }
 

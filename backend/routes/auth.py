@@ -11,7 +11,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
-async def register(body: RegisterRequest):
+def register(body: RegisterRequest):
     db = get_supabase()
 
     # Check if email already exists
@@ -52,7 +52,7 @@ async def register(body: RegisterRequest):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest):
+def login(body: LoginRequest):
     db = get_supabase()
 
     result = db.table("profiles").select("*").eq("email", body.email).single().execute()
@@ -78,7 +78,7 @@ async def login(body: LoginRequest):
 
 
 @router.get("/me", response_model=UserOut)
-async def get_me(current_user: dict = Depends(get_current_user)):
+def get_me(current_user: dict = Depends(get_current_user)):
     return UserOut(
         id=current_user["id"],
         email=current_user["email"],

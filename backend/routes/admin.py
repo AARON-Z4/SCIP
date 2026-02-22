@@ -17,7 +17,7 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 # ─── Stats Dashboard ──────────────────────────────────────────────────────────
 
 @router.get("/stats", response_model=AdminStats)
-async def get_stats(_: dict = Depends(require_admin)):
+def get_stats(_: dict = Depends(require_admin)):
     db = get_supabase()
 
     # All complaints
@@ -53,12 +53,16 @@ async def get_stats(_: dict = Depends(require_admin)):
         count = 0
         for c in resolved_complaints:
             try:
-                created = datetime.fromisoformat(c["created_at"].replace("Z", "+00:00"))
-                updated = datetime.fromisoformat(c["updated_at"].replace("Z", "+00:00"))
+                c_at = c["created_at"].replace("Z", "+00:00")
+                u_at = c["updated_at"].replace("Z", "+00:00")
+                if "+" not in c_at: c_at += "+00:00"
+                if "+" not in u_at: u_at += "+00:00"
+                created = datetime.fromisoformat(c_at)
+                updated = datetime.fromisoformat(u_at)
                 total_days += (updated - created).days
                 count += 1
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[ERROR] Failed Date math for {c.get('id')}: {e}")
         avg_days = round(total_days / count, 1) if count else None
 
     return AdminStats(
@@ -76,7 +80,7 @@ async def get_stats(_: dict = Depends(require_admin)):
 # ─── List All Complaints ──────────────────────────────────────────────────────
 
 @router.get("/complaints", response_model=list[ComplaintListOut])
-async def list_complaints(
+def list_complaints(
     status: str = Query(None),
     priority: str = Query(None),
     category: str = Query(None),
@@ -104,7 +108,7 @@ async def list_complaints(
 # ─── Get Single Complaint (Admin) ─────────────────────────────────────────────
 
 @router.get("/complaints/{complaint_id}")
-async def get_complaint(complaint_id: str, _: dict = Depends(require_admin)):
+def get_complaint(complaint_id: str, _: dict = Depends(require_admin)):
     db = get_supabase()
     result = db.table("complaints").select("*").eq("id", complaint_id).single().execute()
     if not result.data:
@@ -115,7 +119,7 @@ async def get_complaint(complaint_id: str, _: dict = Depends(require_admin)):
 # ─── Update Status ────────────────────────────────────────────────────────────
 
 @router.patch("/complaints/{complaint_id}/status")
-async def update_status(
+def update_status(
     complaint_id: str,
     body: StatusUpdate,
     current_user: dict = Depends(require_admin),
@@ -149,7 +153,7 @@ async def update_status(
 # ─── Add Comment ──────────────────────────────────────────────────────────────
 
 @router.post("/complaints/{complaint_id}/comments", response_model=CommentOut)
-async def add_comment(
+def add_comment(
     complaint_id: str,
     body: CommentCreate,
     current_user: dict = Depends(get_current_user),
@@ -183,7 +187,7 @@ async def add_comment(
 # ─── List Duplicate Links ──────────────────────────────────────────────────────
 
 @router.get("/duplicates")
-async def list_duplicates(
+def list_duplicates(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     _: dict = Depends(require_admin),
