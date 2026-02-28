@@ -69,7 +69,22 @@ export default function SubmitComplaint() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const remaining = 3 - form.images.length;
-    const newFiles = files.slice(0, remaining);
+    const newFiles: File[] = [];
+
+    for (const file of files.slice(0, remaining)) {
+      // Phase 6: MIME type guard — bypass `accept` attribute spoofing
+      if (!file.type.startsWith("image/")) {
+        toast.error(`"${file.name}" is not an image file.`);
+        continue;
+      }
+      // Phase 6: 5MB size guard
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds the 5MB size limit.`);
+        continue;
+      }
+      newFiles.push(file);
+    }
+
     newFiles.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -108,6 +123,8 @@ export default function SubmitComplaint() {
       navigate("/signin");
       return;
     }
+    // Phase 5: Double-submit guard
+    if (loading) return;
     if (!validate()) return;
     setApiError("");
     setLoading(true);
@@ -169,7 +186,7 @@ export default function SubmitComplaint() {
         <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5">
           <Lock size={28} className="text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Sign In Required</h1>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Sign In Required</h2>
         <p className="text-sm text-muted-foreground mb-6">
           You must be signed in to submit a complaint. Your identity is associated with the complaint for follow-up.
         </p>

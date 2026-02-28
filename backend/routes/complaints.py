@@ -155,11 +155,12 @@ def submit_complaint(
 
 # ─── Track by Reference ID ────────────────────────────────────────────────────
 
-@router.get("/track/{reference_id}", response_model=ComplaintOut)
+@router.get("/track/{reference_id}")
 def track_complaint(reference_id: str):
+    """Public tracking endpoint — returns status info but strips PII."""
     db = get_supabase()
     result = db.table("complaints")\
-        .select("*")\
+        .select("id, reference_id, title, description, category, location, priority, status, image_urls, user_id, created_at, updated_at")\
         .eq("reference_id", reference_id.upper())\
         .single()\
         .execute()
@@ -167,7 +168,11 @@ def track_complaint(reference_id: str):
     if not result.data:
         raise HTTPException(status_code=404, detail="Complaint not found")
 
-    return _row_to_out(result.data)
+    row = result.data
+    # Inject None for PII fields so ComplaintOut schema is satisfied without exposing them
+    row["submitter_name"] = None
+    row["submitter_email"] = None
+    return _row_to_out(row)
 
 
 # ─── Get my complaints ────────────────────────────────────────────────────────

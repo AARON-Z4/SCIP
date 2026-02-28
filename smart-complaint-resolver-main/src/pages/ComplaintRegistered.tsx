@@ -204,3 +204,4 @@ export default function ComplaintRegistered() {
     </div>
   );
 }
+// aria-label

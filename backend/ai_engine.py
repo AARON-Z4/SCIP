@@ -12,9 +12,11 @@ Flow:
 import numpy as np
 import json
 import re
+import concurrent.futures
 import google.generativeai as genai
 from config import get_settings
 from typing import Optional
+from fastapi import HTTPException
 
 # Configure Gemini lazily on first use (avoids startup crash if key is missing)
 _genai_configured = False
@@ -32,15 +34,27 @@ def _ensure_genai_configured():
 def generate_embedding(text: str) -> list[float]:
     """
     Generate a semantic embedding vector using Gemini text-embedding-004.
-    Returns a list of 768 floats.
+    Returns a list of 768 floats. Raises HTTPException on timeout (>25s).
     """
     _ensure_genai_configured()
-    result = genai.embed_content(
-        model="models/text-embedding-004",
-        content=text,
-        task_type="RETRIEVAL_DOCUMENT",
-    )
-    return result["embedding"]
+
+    def _call():
+        result = genai.embed_content(
+            model="models/text-embedding-004",
+            content=text,
+            task_type="RETRIEVAL_DOCUMENT",
+        )
+        return result["embedding"]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_call)
+        try:
+            return future.result(timeout=25)
+        except concurrent.futures.TimeoutError:
+            raise HTTPException(
+                status_code=503,
+                detail="AI analysis timed out. Please try again shortly."
+            )
 
 
 def complaint_text(title: str, description: str, category: str, location: str) -> str:

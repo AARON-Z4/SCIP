@@ -1,0 +1,27 @@
+﻿
+[UX AUDIT] 68 files checked
+--------------------------------------------------
+[!] ISSUES (5):
+  - [Cognitive Load] card.tsx: Form inputs without labels. Use <label> for accessibility and clarity.
+  - [Cognitive Load] hover-card.tsx: Form inputs without labels. Use <label> for accessibility and clarity.
+  - [Cognitive Load] ComplaintRegistered.tsx: Form inputs without labels. Use <label> for accessibility and clarity.
+  - [Color] DuplicateDetected.tsx: PURPLE DETECTED ('purple'). Banned by Maestro rules. Use Teal/Cyan/Emerald instead.
+  - [Color] TrackComplaint.tsx: PURPLE DETECTED ('purple'). Banned by Maestro rules. Use Teal/Cyan/Emerald instead.
+[*] WARNINGS (253):
+  - [Trust] App.css: Form without security indicators. Add 'SSL Secure' or lock icon.
+  - [Performance] App.css: Animating expensive properties (width, margin, height, padding). Use transform/opacity where possible.
+  - [Trust] App.tsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+  - [Animation] App.tsx: Routing detected without page transitions. Consider fade/slide for context continuity.
+  - [Performance] index.css: Animating expensive properties (height, left, bottom, width, right, top). Use transform/opacity where possible.
+  - [Accessibility] index.css: Animations found without prefers-reduced-motion check
+  - [Reflective] Layout.tsx: Long-form content without brand story/values. Add 'About' or 'Why We Exist' section.
+  - [Trust] Layout.tsx: No social proof detected. Consider adding testimonials, ratings, or 'Trusted by' logos.
+  - [Trust] Layout.tsx: Footer lacks authority signals. Add certifications, awards, or media mentions.
+  - [Typography] Layout.tsx: No line length constraint (45-75ch). Use max-w-prose or max-w-[65ch].
+  - [Typography] Layout.tsx: Text elements found without line-height. Body: 1.4-1.6, Headings: 1.1-1.3
+  - [Typography] Layout.tsx: Fixed font sizes without clamp(). Consider fluid typography: clamp(MIN, PREFERRED, MAX)
+  - [Visual] Layout.tsx: Flat design with no depth. Consider shadows or subtle gradients for hierarchy.
+  - [Animation] Layout.tsx: Routing detected without page transitions. Consider fade/slide for context continuity.
+  - [Fitts' Law] NavBar.tsx: Small targets (< 44px)
+[+] PASSED CHECKS: 17
+STATUS: FAIL

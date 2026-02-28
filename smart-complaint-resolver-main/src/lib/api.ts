@@ -155,27 +155,44 @@ async function apiFetch<T>(
         headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    // 30s client-side timeout guard
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
-    if (!res.ok) {
-        if (res.status === 401 && !path.includes("/auth/login")) {
-            removeToken();
-            window.location.href = "/signin";
+    try {
+        const res = await fetch(`${BASE_URL}${path}`, {
+            ...options,
+            headers,
+            signal: controller.signal,
+        });
+
+        if (!res.ok) {
+            if (res.status === 401 && !path.includes("/auth/login")) {
+                removeToken();
+                window.location.href = "/signin";
+            }
+            let errorMsg = `HTTP ${res.status}`;
+            try {
+                const body = await res.json();
+                errorMsg = body.detail || body.message || errorMsg;
+            } catch {
+                // ignore parse errors
+            }
+            throw new Error(errorMsg);
         }
-        let errorMsg = `HTTP ${res.status}`;
-        try {
-            const body = await res.json();
-            errorMsg = body.detail || body.message || errorMsg;
-        } catch {
-            // ignore parse errors
+
+        // Handle 204 No Content
+        if (res.status === 204) return undefined as unknown as T;
+
+        return res.json() as Promise<T>;
+    } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") {
+            throw new Error("Request timed out. Please check your connection and try again.");
         }
-        throw new Error(errorMsg);
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
     }
-
-    // Handle 204 No Content
-    if (res.status === 204) return undefined as unknown as T;
-
-    return res.json() as Promise<T>;
 }
 
 // ─── Auth API ─────────────────────────────────────────────────────────────

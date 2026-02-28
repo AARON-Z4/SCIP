@@ -1,0 +1,27 @@
+﻿
+============================================================
+  SEO CHECKER - Search Engine Optimization Audit
+============================================================
+Project: C:\Users\jhash\Downloads\smart-complaint-resolver-main
+Time: 2026-03-01 03:37:24
+------------------------------------------------------------
+Found 12 page files to analyze
+
+============================================================
+SEO ANALYSIS RESULTS
+============================================================
+
+Issue Summary:
+  [1] Multiple H1 tags (2)
+
+Affected files (1):
+  - SubmitComplaint.tsx
+
+{
+  "script": "seo_checker",
+  "project": "C:\\Users\\jhash\\Downloads\\smart-complaint-resolver-main",
+  "files_checked": 12,
+  "files_with_issues": 1,
+  "issues_found": 1,
+  "passed": false
+}

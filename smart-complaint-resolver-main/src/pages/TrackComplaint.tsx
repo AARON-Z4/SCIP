@@ -10,7 +10,7 @@ import { complaintsApi, ComplaintOut } from "@/lib/api";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
     registered: { label: "Registered", color: "bg-blue-100 text-blue-700 border-blue-200", icon: Clock },
-    verified: { label: "Verified", color: "bg-purple-100 text-purple-700 border-purple-200", icon: CheckCircle2 },
+    verified: { label: "Verified", color: "bg-teal-100 text-teal-700 border-teal-200", icon: CheckCircle2 },
     assigned: { label: "Assigned", color: "bg-orange-100 text-orange-700 border-orange-200", icon: Clock },
     in_progress: { label: "In Progress", color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: Clock },
     resolved: { label: "Resolved", color: "bg-green-100 text-green-700 border-green-200", icon: CheckCircle2 },

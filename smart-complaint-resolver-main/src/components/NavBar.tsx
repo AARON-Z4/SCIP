@@ -118,7 +118,7 @@ export default function NavBar() {
                           className={cn(
                             "inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded",
                             user?.role === "admin"
-                              ? "bg-purple-100 text-purple-700"
+                              ? "bg-teal-100 text-teal-700"
                               : "bg-blue-100 text-blue-700"
                           )}
                         >
@@ -187,28 +187,32 @@ export default function NavBar() {
         <div className="md:hidden border-t border-border bg-white">
           <nav className="px-4 py-3 space-y-1">
             {NAV_LINKS.map((link) => (
-              <Link
+              <button
                 key={link.href}
-                to={link.href}
-                onClick={() => setMobileOpen(false)}
+                onClick={() => {
+                  setMobileOpen(false);
+                  navigate(link.href);
+                }}
                 className={cn(
-                  "block px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                  "block w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors",
                   location.pathname === link.href
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 )}
               >
                 {link.label}
-              </Link>
+              </button>
             ))}
             {isAdmin && (
-              <Link
-                to="/admin"
-                onClick={() => setMobileOpen(false)}
-                className="block px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  navigate("/admin");
+                }}
+                className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
                 Admin Dashboard
-              </Link>
+              </button>
             )}
 
             {isAuthenticated ? (
@@ -227,20 +231,24 @@ export default function NavBar() {
               </div>
             ) : (
               <div className="pt-2 border-t border-border mt-2 space-y-1">
-                <Link
-                  to="/signin"
-                  onClick={() => setMobileOpen(false)}
-                  className="block px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
+                <button
+                  onClick={() => {
+                    setMobileOpen(false);
+                    navigate("/signin");
+                  }}
+                  className="block w-full text-left px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
                 >
                   Sign In
-                </Link>
-                <Link
-                  to="/signup"
-                  onClick={() => setMobileOpen(false)}
-                  className="block px-3 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground text-center"
+                </button>
+                <button
+                  onClick={() => {
+                    setMobileOpen(false);
+                    navigate("/signup");
+                  }}
+                  className="block w-full text-center px-3 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground"
                 >
                   Register
-                </Link>
+                </button>
               </div>
             )}
           </nav>

@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 // UI Config for Status Badges
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   registered: { label: "Registered", cls: "bg-blue-100 text-blue-700" },
-  verified: { label: "Verified", cls: "bg-purple-100 text-purple-700" },
+  verified: { label: "Verified", cls: "bg-teal-100 text-teal-700" },
   assigned: { label: "Assigned", cls: "bg-orange-100 text-orange-700" },
   in_progress: { label: "In Progress", cls: "bg-yellow-100 text-yellow-700" },
   resolved: { label: "Resolved", cls: "bg-green-100 text-green-700" },
@@ -27,7 +27,7 @@ const PRIORITY_CONFIG: Record<string, string> = {
   low: "bg-green-100 text-green-700",
 };
 
-const BAR_COLORS = ["bg-blue-500", "bg-cyan-400", "bg-purple-400", "bg-green-400", "bg-orange-400", "bg-gray-300"];
+const BAR_COLORS = ["bg-blue-500", "bg-cyan-400", "bg-teal-400", "bg-green-400", "bg-orange-400", "bg-gray-300"];
 
 export default function AdminDashboard() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
@@ -125,8 +125,8 @@ export default function AdminDashboard() {
       label: "Duplicates Caught",
       value: stats?.duplicates_caught || 0,
       icon: GitMerge,
-      color: "text-purple-600",
-      bg: "bg-purple-50"
+      color: "text-teal-600",
+      bg: "bg-teal-50"
     },
   ];
 
@@ -255,6 +255,7 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-1.5 border border-border rounded-md px-3 py-1.5 bg-background">
                 <Filter size={12} className="text-muted-foreground" />
                 <select
+                  aria-label="Filter"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="text-xs text-foreground bg-transparent outline-none cursor-pointer"

@@ -86,11 +86,18 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-weight: 600;
     letter-spacing: -0.015em;
@@ -108,13 +115,16 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: hsl(var(--muted));
 }
+
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }
@@ -129,6 +139,7 @@
   background: hsl(var(--border));
   z-index: 0;
 }
+
 .step-connector.active {
   background: hsl(var(--primary));
 }
@@ -146,8 +157,13 @@
 
 /* Similarity bar animation */
 @keyframes fillBar {
-  from { width: 0; }
-  to { width: var(--target-width); }
+  from {
+    width: 0;
+  }
+
+  to {
+    width: var(--target-width);
+  }
 }
 
 .similarity-fill {
@@ -156,20 +172,36 @@
 
 /* Pulse animation for status */
 @keyframes gentlePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }
+
 .status-pulse {
   animation: gentlePulse 2s ease-in-out infinite;
 }
 
 /* Shimmer for loading */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
+
 .shimmer {
   background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--border)) 50%, hsl(var(--muted)) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
+/* aria-label */
