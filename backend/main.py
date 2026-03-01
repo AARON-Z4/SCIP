@@ -58,13 +58,24 @@ app.add_middleware(
 # reports a misleading "No Access-Control-Allow-Origin" instead of the real error.
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    from fastapi import HTTPException
+    
     origin = request.headers.get("origin", "")
     allowed = CORS_ORIGINS
     allow_origin = origin if origin in allowed else (allowed[0] if allowed else "*")
-    print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {exc}")
+    
+    status_code = 500
+    detail = f"Internal server error: {type(exc).__name__}"
+    
+    if isinstance(exc, HTTPException):
+        status_code = exc.status_code
+        detail = exc.detail
+    else:
+        print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {exc}")
+
     return JSONResponse(
-        status_code=500,
-        content={"detail": f"Internal server error: {type(exc).__name__}"},
+        status_code=status_code,
+        content={"detail": detail},
         headers={
             "Access-Control-Allow-Origin": allow_origin,
             "Access-Control-Allow-Credentials": "true",
