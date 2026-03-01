@@ -110,7 +110,8 @@ export default function SubmitComplaint() {
       newErrors.category = "Please select a category";
     if (!form.location.trim() || form.location.trim().length < 3)
       newErrors.location = "Location must be at least 3 characters";
-    if (!form.title.trim()) newErrors.title = "Complaint title is required";
+    if (!form.title.trim() || form.title.trim().length < 5)
+      newErrors.title = "Complaint title must be at least 5 characters";
     if (form.description.trim().length < 30)
       newErrors.description = "Description must be at least 30 characters";
     setErrors(newErrors);

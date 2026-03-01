@@ -174,7 +174,17 @@ async function apiFetch<T>(
             let errorMsg = `HTTP ${res.status}`;
             try {
                 const body = await res.json();
-                errorMsg = body.detail || body.message || errorMsg;
+                if (Array.isArray(body.detail)) {
+                    // FastAPI 422 validation errors: [{loc: [...], msg: "...", type: "..."}]
+                    errorMsg = body.detail
+                        .map((e: { loc?: string[]; msg: string }) => {
+                            const field = e.loc ? e.loc[e.loc.length - 1] : "";
+                            return field ? `${field}: ${e.msg}` : e.msg;
+                        })
+                        .join("; ");
+                } else {
+                    errorMsg = body.detail || body.message || errorMsg;
+                }
             } catch {
                 // ignore parse errors
             }

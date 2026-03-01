@@ -13,20 +13,20 @@ import numpy as np
 import json
 import re
 import concurrent.futures
-import google.generativeai as genai
+from google import genai
 from config import get_settings
 from typing import Optional
 from fastapi import HTTPException
 
-# Configure Gemini lazily on first use (avoids startup crash if key is missing)
-_genai_configured = False
+# Lazily-initialized client
+_client: genai.Client | None = None
 
-def _ensure_genai_configured():
-    global _genai_configured
-    if not _genai_configured:
+def _get_client() -> genai.Client:
+    global _client
+    if _client is None:
         s = get_settings()
-        genai.configure(api_key=s.gemini_api_key)
-        _genai_configured = True
+        _client = genai.Client(api_key=s.gemini_api_key)
+    return _client
 
 
 # ─── Embedding ────────────────────────────────────────────────────────────────
@@ -36,15 +36,13 @@ def generate_embedding(text: str) -> list[float]:
     Generate a semantic embedding vector using Gemini text-embedding-004.
     Returns a list of 768 floats. Raises HTTPException on timeout (>25s).
     """
-    _ensure_genai_configured()
-
     def _call():
-        result = genai.embed_content(
+        client = _get_client()
+        result = client.models.embed_content(
             model="models/text-embedding-004",
-            content=text,
-            task_type="RETRIEVAL_DOCUMENT",
+            contents=text,
         )
-        return result["embedding"]
+        return result.embeddings[0].values
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_call)

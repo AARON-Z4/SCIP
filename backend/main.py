@@ -1,6 +1,7 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from config import get_settings
 from routes import auth, complaints, admin
@@ -51,6 +52,25 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# ─── Global Exception Handler (ensures CORS headers survive crashes) ──────────
+# Without this, an unhandled 500 bypasses the CORS middleware and the browser
+# reports a misleading "No Access-Control-Allow-Origin" instead of the real error.
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    origin = request.headers.get("origin", "")
+    allowed = CORS_ORIGINS
+    allow_origin = origin if origin in allowed else (allowed[0] if allowed else "*")
+    print(f"[ERROR] Unhandled exception on {request.method} {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {type(exc).__name__}"},
+        headers={
+            "Access-Control-Allow-Origin": allow_origin,
+            "Access-Control-Allow-Credentials": "true",
+        },
+    )
+
 
 # ─── Include Routers ──────────────────────────────────────────────────────────
 app.include_router(auth.router)

@@ -63,14 +63,23 @@ def submit_complaint(
     existing = existing_result.data or []
 
     # 2. Run AI duplicate detection
-    duplicate = check_duplicate(
-        new_title=body.title,
-        new_description=body.description,
-        new_category=body.category,
-        new_location=body.location,
-        existing_complaints=existing,
-        threshold=settings.duplicate_threshold,
-    )
+    try:
+        duplicate = check_duplicate(
+            new_title=body.title,
+            new_description=body.description,
+            new_category=body.category,
+            new_location=body.location,
+            existing_complaints=existing,
+            threshold=settings.duplicate_threshold,
+        )
+    except HTTPException:
+        raise  # re-raise our own 503 timeout
+    except Exception as ai_err:
+        print(f"[AI] Duplicate check failed: {ai_err}")
+        raise HTTPException(
+            status_code=503,
+            detail="AI analysis service is unavailable. Please try again in a moment.",
+        )
 
     if duplicate:
         # ── DUPLICATE DETECTED ──
@@ -107,8 +116,14 @@ def submit_complaint(
 
     # 3. Not a duplicate — register the complaint
     # Generate embedding for the new complaint
-    emb_text = complaint_text(body.title, body.description, body.category, body.location)
-    embedding = generate_embedding(emb_text)
+    try:
+        emb_text = complaint_text(body.title, body.description, body.category, body.location)
+        embedding = generate_embedding(emb_text)
+    except HTTPException:
+        raise  # re-raise our own 503 timeout
+    except Exception as emb_err:
+        print(f"[AI] Embedding generation failed: {emb_err}")
+        embedding = []  # store empty embedding; complaint still saves
 
     now = datetime.now(timezone.utc).isoformat()
     
