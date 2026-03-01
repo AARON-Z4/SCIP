@@ -4,13 +4,12 @@ Authentication utilities: JWT creation/verification, password hashing.
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from config import get_settings
 from database import get_supabase
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # auto_error=False: return 401 instead of 422 when Authorization header is missing
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -18,14 +17,25 @@ bearer_scheme = HTTPBearer(auto_error=False)
 # ─── Password ─────────────────────────────────────────────────────────────────
 
 def hash_password(plain: str) -> str:
-    return pwd_context.hash(plain)
+    # Hash a password for the first time
+    # (Using bcrypt, the salt is saved into the hash itself)
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(plain.encode('utf-8'), salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain: str, hashed: Optional[str]) -> bool:
     if not hashed:
         return False
     try:
-        return pwd_context.verify(plain, hashed)
+        # Check that stored hashed password is a valid bcrypt format before testing
+        if not hashed.startswith('$2'):
+            return False
+            
+        return bcrypt.checkpw(
+            plain.encode('utf-8'),
+            hashed.encode('utf-8')
+        )
     except Exception as e:
         print(f"[AUTH] Password verification failed: {e}")
         return False
