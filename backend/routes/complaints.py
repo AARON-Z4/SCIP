@@ -62,7 +62,12 @@ def submit_complaint(
         .execute()
     existing = existing_result.data or []
 
-    # 2. Run AI duplicate detection
+    # 2. Run AI duplicate detection — non-blocking
+    # If Gemini is unavailable (bad key, quota, network), we skip the check
+    # and let the complaint through. This prevents the AI from being a
+    # single point of failure for the entire submission flow.
+    duplicate = None
+    ai_available = True
     try:
         duplicate = check_duplicate(
             new_title=body.title,
@@ -72,14 +77,10 @@ def submit_complaint(
             existing_complaints=existing,
             threshold=settings.duplicate_threshold,
         )
-    except HTTPException:
-        raise  # re-raise our own 503 timeout
     except Exception as ai_err:
-        print(f"[AI] Duplicate check failed: {ai_err}")
-        raise HTTPException(
-            status_code=503,
-            detail="AI analysis service is unavailable. Please try again in a moment.",
-        )
+        print(f"[AI] Duplicate check skipped (AI unavailable): {ai_err}")
+        ai_available = False
+        duplicate = None  # treat as no duplicate; complaint goes through
 
     if duplicate:
         # ── DUPLICATE DETECTED ──
@@ -115,15 +116,15 @@ def submit_complaint(
         )
 
     # 3. Not a duplicate — register the complaint
-    # Generate embedding for the new complaint
-    try:
-        emb_text = complaint_text(body.title, body.description, body.category, body.location)
-        embedding = generate_embedding(emb_text)
-    except HTTPException:
-        raise  # re-raise our own 503 timeout
-    except Exception as emb_err:
-        print(f"[AI] Embedding generation failed: {emb_err}")
-        embedding = []  # store empty embedding; complaint still saves
+    # Generate embedding for the new complaint (best-effort, non-blocking)
+    embedding = []
+    if ai_available:
+        try:
+            emb_text = complaint_text(body.title, body.description, body.category, body.location)
+            embedding = generate_embedding(emb_text)
+        except Exception as emb_err:
+            print(f"[AI] Embedding generation skipped: {emb_err}")
+            embedding = []
 
     now = datetime.now(timezone.utc).isoformat()
     
@@ -155,11 +156,16 @@ def submit_complaint(
                 
                 # Add an automatic system comment highlighting the AI verification
                 try:
+                    comment_text = (
+                        "Automated system update: Complaint successfully analyzed by AI. No duplicates found. Verified and moved to In Progress."
+                        if ai_available else
+                        "Complaint registered. AI duplicate check was temporarily unavailable — complaint has been submitted for manual review."
+                    )
                     db.table("complaint_comments").insert({
                         "id": str(uuid.uuid4()),
                         "complaint_id": saved["id"],
                         "author_id": current_user["id"],
-                        "content": "Automated system update: Complaint successfully analyzed by AI. No duplicates found. Verified and moved to In Progress.",
+                        "content": comment_text,
                         "created_at": now,
                     }).execute()
                 except Exception as c_err:
