@@ -17,9 +17,9 @@ import { cn } from "@/lib/utils";
 import type { AnalysisResult } from "@/lib/api";
 
 const NEXT_STEPS = [
-  { icon: Bell, text: "You'll receive email and SMS updates as your complaint progresses." },
-  { icon: Search, text: "Track your complaint status anytime using the Tracking page." },
-  { icon: Calendar, text: "An officer will be assigned within 2 working days of registration." },
+  { icon: Bell, text: "You'll receive updates as your complaint progresses through the system." },
+  { icon: Search, text: "Track your complaint status anytime using the Tracking page with your reference ID." },
+  { icon: Calendar, text: "A government officer will review your complaint and take action shortly." },
 ];
 
 export default function ComplaintRegistered() {
@@ -61,11 +61,10 @@ export default function ComplaintRegistered() {
           <CheckCircle2 className="w-10 h-10 text-green-600" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-          Complaint Registered Successfully
+          Complaint Verified & In Progress
         </h1>
         <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-          Your complaint has been recorded and assigned a unique tracking ID. Please save this ID for
-          future reference.
+          Your complaint was analyzed by AI, confirmed as unique, and is now actively in progress. Save your reference ID to track updates.
         </p>
       </div>
 
@@ -141,17 +140,17 @@ export default function ComplaintRegistered() {
       >
         <h2 className="text-sm font-semibold text-foreground mb-4">Current Status</h2>
         <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-blue-500 status-pulse" />
-          <span className="text-sm font-medium text-blue-700">Registered — Awaiting Assignment</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 status-pulse" />
+          <span className="text-sm font-medium text-yellow-700">In Progress — AI Verified, No Duplicates Found</span>
           <span className="ml-auto text-xs text-muted-foreground">
             {complaint ? new Date(complaint.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
           </span>
         </div>
         <div className="mt-3 h-1.5 bg-secondary rounded-full overflow-hidden">
-          <div className="h-full bg-primary rounded-full w-[8%]" />
+          <div className="h-full bg-yellow-500 rounded-full w-[55%]" />
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          Your complaint is in the queue and will be assigned to the relevant department shortly.
+          Your complaint has been verified by AI and is now in progress. An officer will review and act on it shortly.
         </p>
       </div>
 
