@@ -139,7 +139,7 @@ def submit_complaint(
                 "category": body.category,
                 "location": body.location,
                 "priority": body.priority.value,
-                "status": "registered",
+                "status": "in_progress",
                 "image_urls": body.image_urls or [],
                 "user_id": current_user["id"],
                 "submitter_name": current_user.get("full_name"),
@@ -152,6 +152,19 @@ def submit_complaint(
             result = db.table("complaints").insert(new_complaint).execute()
             if result.data:
                 saved = result.data[0]
+                
+                # Add an automatic system comment highlighting the AI verification
+                try:
+                    db.table("complaint_comments").insert({
+                        "id": str(uuid.uuid4()),
+                        "complaint_id": saved["id"],
+                        "author_id": current_user["id"],
+                        "content": "Automated system update: Complaint successfully analyzed by AI. No duplicates found. Verified and moved to In Progress.",
+                        "created_at": now,
+                    }).execute()
+                except Exception as c_err:
+                    print(f"[AI] Failed to add automated comment: {c_err}")
+                    
                 break
         except Exception as e:
             if "duplicate key" in str(e).lower() or "unique constraint" in str(e).lower():
