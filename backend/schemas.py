@@ -1,7 +1,7 @@
 """
 Pydantic schemas for request/response validation.
 """
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -63,12 +63,25 @@ class UserOut(BaseModel):
 
 class ComplaintCreate(BaseModel):
     title: str = Field(..., min_length=5, max_length=200)
-    description: str = Field(..., min_length=30, max_length=5000)
+    description: str = Field(..., max_length=5000)
     category: str = Field(..., min_length=2, max_length=100)
     location: str = Field(..., min_length=3, max_length=200)
     priority: Priority = Priority.medium
     # image URLs come after upload (separate endpoint)
     image_urls: Optional[List[str]] = []
+
+    @field_validator("title", "description", "location", mode="before")
+    @classmethod
+    def strip_whitespace(cls, v: str) -> str:
+        """Strip leading/trailing whitespace so spaces don't count toward min_length."""
+        return v.strip() if isinstance(v, str) else v
+
+    @field_validator("description")
+    @classmethod
+    def description_min_length(cls, v: str) -> str:
+        if len(v) < 30:
+            raise ValueError(f"Description must be at least 30 characters (got {len(v)})")
+        return v
 
 
 class ComplaintOut(BaseModel):

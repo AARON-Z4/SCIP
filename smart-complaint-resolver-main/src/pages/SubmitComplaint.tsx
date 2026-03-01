@@ -113,7 +113,7 @@ export default function SubmitComplaint() {
     if (!form.title.trim() || form.title.trim().length < 5)
       newErrors.title = "Complaint title must be at least 5 characters";
     if (form.description.trim().length < 30)
-      newErrors.description = "Description must be at least 30 characters";
+      newErrors.description = "Description must be at least 30 characters. Currently: " + form.description.trim().length;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -299,7 +299,7 @@ export default function SubmitComplaint() {
               label="Detailed Description"
               required
               error={errors.description}
-              hint={`${form.description.length} chars (min 30)`}
+              hint={`${form.description.trim().length} / min 30 characters`}
             >
               <textarea
                 rows={5}
