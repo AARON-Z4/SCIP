@@ -1,154 +1,141 @@
 """
-AI Engine: Gemini-powered duplicate detection using text embeddings + location heuristics.
+AI Engine: Groq-powered duplicate detection using LLM semantic reasoning.
 
 Flow:
-1. Generate embedding for new complaint (title + description + category + location)
-2. Fetch all existing complaint embeddings from DB
-3. Compute cosine similarity for each
-4. Also compute location similarity score  
-5. Combine both with weighted average
-6. If combined score > threshold → flag as duplicate
+1. Take the new complaint fields (title, description, category, location)
+2. Compare against up to 10 most recent existing complaints via Groq LLM
+3. LLM returns a structured JSON: { is_duplicate, similarity_score, reasoning, factor_scores }
+4. If similarity_score >= threshold → flag as duplicate
 """
-import numpy as np
 import json
 import re
 import concurrent.futures
-from google import genai
+from groq import Groq
 from config import get_settings
 from typing import Optional
 from fastapi import HTTPException
 
 # Lazily-initialized client
-_client: genai.Client | None = None
+_client: Groq | None = None
 
-def _get_client() -> genai.Client:
+
+def _get_client() -> Groq:
     global _client
     if _client is None:
         s = get_settings()
-        _client = genai.Client(api_key=s.gemini_api_key)
+        _client = Groq(api_key=s.groq_api_key)
     return _client
 
 
-# ─── Embedding ────────────────────────────────────────────────────────────────
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
-def generate_embedding(text: str) -> list[float]:
+def complaint_text(title: str, description: str, category: str, location: str) -> str:
+    """Concatenate fields into a single string for comparison."""
+    return f"Category: {category}. Location: {location}. Title: {title}. Description: {description}"
+
+
+def _format_complaint(c: dict) -> str:
+    return (
+        f"- ID: {c.get('id','')}\n"
+        f"  Title: {c.get('title','')}\n"
+        f"  Description: {c.get('description','')[:200]}\n"
+        f"  Category: {c.get('category','')}\n"
+        f"  Location: {c.get('location','')}"
+    )
+
+
+# ─── Core LLM Duplicate Check ──────────────────────────────────────────────────
+
+def _llm_duplicate_check(
+    new_complaint: dict,
+    candidates: list[dict],
+) -> Optional[dict]:
     """
-    Generate a semantic embedding vector using Gemini text-embedding-004.
-    Returns a list of 768 floats. Raises HTTPException on timeout (>25s).
+    Use Groq LLM to determine if new_complaint is a duplicate of any candidate.
+    Returns best match dict or None.
     """
+    if not candidates:
+        return None
+
+    candidates_text = "\n".join(_format_complaint(c) for c in candidates[:10])
+
+    prompt = f"""You are an AI assistant for a government grievance management system.
+Your job is to determine if a newly submitted complaint is a duplicate of any existing ones.
+
+NEW COMPLAINT:
+Title: {new_complaint['title']}
+Description: {new_complaint['description']}
+Category: {new_complaint['category']}
+Location: {new_complaint['location']}
+
+EXISTING COMPLAINTS:
+{candidates_text}
+
+Analyze semantic similarity, location overlap, and category match.
+
+Respond ONLY with a valid JSON object in this exact format (no markdown, no extra text):
+{{
+  "is_duplicate": true or false,
+  "duplicate_id": "<id of the matching complaint, or null>",
+  "similarity_score": <float from 0.0 to 1.0>,
+  "reasoning": "<1-2 sentence explanation>",
+  "factor_scores": {{
+    "semantic_similarity": <float 0-1>,
+    "location_overlap": <float 0-1>,
+    "category_match": <float 0-1>
+  }}
+}}"""
+
     def _call():
         client = _get_client()
-        result = client.models.embed_content(
-            model="models/text-embedding-004",
-            contents=text,
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+            max_tokens=400,
         )
-        return result.embeddings[0].values
+        return response.choices[0].message.content
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         future = executor.submit(_call)
         try:
-            return future.result(timeout=25)
+            raw = future.result(timeout=25)
         except concurrent.futures.TimeoutError:
             raise HTTPException(
                 status_code=503,
                 detail="AI analysis timed out. Please try again shortly."
             )
 
+    # Parse JSON out of response (handle markdown code block wrapping)
+    try:
+        # Strip markdown if present
+        clean = re.sub(r"```(?:json)?|```", "", raw).strip()
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        print(f"[AI] Could not parse LLM response as JSON: {raw}")
+        return None
 
-def complaint_text(title: str, description: str, category: str, location: str) -> str:
-    """Concatenate fields into a single string for embedding."""
-    return f"Category: {category}. Location: {location}. Title: {title}. Description: {description}"
+    if not result.get("is_duplicate"):
+        return None
 
+    # Find the matching complaint from candidates
+    dup_id = result.get("duplicate_id")
+    matched = next((c for c in candidates if c.get("id") == dup_id), None)
+    if not matched:
+        # LLM said duplicate but gave bad ID — trust score threshold instead
+        if result.get("similarity_score", 0) < 0.75:
+            return None
+        matched = candidates[0]  # fallback to first candidate
 
-# ─── Cosine Similarity ────────────────────────────────────────────────────────
-
-def cosine_similarity(a: list[float], b: list[float]) -> float:
-    va = np.array(a, dtype=np.float32)
-    vb = np.array(b, dtype=np.float32)
-    dot = np.dot(va, vb)
-    norm = np.linalg.norm(va) * np.linalg.norm(vb)
-    if norm == 0:
-        return 0.0
-    return float(dot / norm)
-
-
-# ─── Location Similarity ──────────────────────────────────────────────────────
-
-def _normalize_location(loc: str) -> str:
-    return re.sub(r"[^a-z0-9 ]", "", loc.lower().strip())
-
-
-def location_similarity(loc_a: str, loc_b: str) -> float:
-    """
-    Simple word-overlap based location similarity.
-    Returns 0.0–1.0.
-    """
-    a_words = set(_normalize_location(loc_a).split())
-    b_words = set(_normalize_location(loc_b).split())
-    if not a_words or not b_words:
-        return 0.0
-    overlap = a_words & b_words
-    return len(overlap) / max(len(a_words), len(b_words))
-
-
-# ─── Combined Score ───────────────────────────────────────────────────────────
-
-def combined_score(
-    text_sim: float,
-    loc_sim: float,
-    category_match: bool,
-) -> float:
-    """
-    Weighted combination:
-    - Text similarity: 60%
-    - Location similarity: 30%
-    - Category match bonus: 10%
-    """
-    cat_score = 1.0 if category_match else 0.0
-    return (text_sim * 0.60) + (loc_sim * 0.30) + (cat_score * 0.10)
-
-
-def factor_scores(
-    text_sim: float,
-    loc_sim: float,
-    category_match: bool,
-) -> dict:
     return {
-        "text_similarity": round(text_sim * 100, 1),
-        "location_match": round(loc_sim * 100, 1),
-        "category_match": 100.0 if category_match else 0.0,
+        "complaint": matched,
+        "similarity_score": float(result.get("similarity_score", 0)),
+        "reasoning": result.get("reasoning", ""),
+        "factor_scores": result.get("factor_scores", {}),
     }
 
 
-# ─── Reasoning Message ────────────────────────────────────────────────────────
-
-def build_reasoning(
-    score: float,
-    text_sim: float,
-    loc_sim: float,
-    category_match: bool,
-    new_location: str,
-    existing_location: str,
-    new_category: str,
-    existing_category: str,
-) -> str:
-    parts = []
-    if text_sim >= 0.7:
-        parts.append(f"The complaint description and title are highly similar ({round(text_sim*100)}% text overlap).")
-    elif text_sim >= 0.5:
-        parts.append(f"The complaint description shares notable similarity ({round(text_sim*100)}%).")
-    if loc_sim >= 0.6:
-        parts.append(f"Both complaints reference the same location area ({existing_location}).")
-    elif loc_sim >= 0.3:
-        parts.append(f"Locations appear to be nearby ({new_location} vs {existing_location}).")
-    if category_match:
-        parts.append(f"Both complaints are categorized under '{new_category}'.")
-    if not parts:
-        parts.append(f"Overall similarity score of {round(score*100)}% exceeds the duplicate threshold.")
-    return " ".join(parts)
-
-
-# ─── Main Duplicate Check ─────────────────────────────────────────────────────
+# ─── Public API ────────────────────────────────────────────────────────────────
 
 def check_duplicate(
     new_title: str,
@@ -159,63 +146,38 @@ def check_duplicate(
     threshold: float = 0.75,
 ) -> Optional[dict]:
     """
-    Check if the new complaint is a duplicate of any existing complaint.
+    Check if the new complaint is semantically duplicate of any existing one.
 
-    Args:
-        existing_complaints: list of dicts with keys:
-            id, reference_id, title, description, category, location,
-            status, created_at, embedding (list[float] or None)
-    
-    Returns:
-        Best matching complaint dict with similarity metadata, or None.
+    Returns best matching complaint dict with similarity metadata, or None.
     """
     if not existing_complaints:
         return None
 
-    # Generate embedding for the new complaint
-    new_text = complaint_text(new_title, new_description, new_category, new_location)
-    new_embedding = generate_embedding(new_text)
+    new_complaint = {
+        "title": new_title,
+        "description": new_description,
+        "category": new_category,
+        "location": new_location,
+    }
 
-    best_score = 0.0
-    best_match = None
+    # Filter to same-category complaints first for efficiency,
+    # fall back to all if none match
+    same_cat = [
+        c for c in existing_complaints
+        if c.get("category", "").strip().lower() == new_category.strip().lower()
+    ]
+    candidates = same_cat[:10] if same_cat else existing_complaints[:10]
 
-    for comp in existing_complaints:
-        # Skip complaints without embeddings
-        stored_embedding = comp.get("embedding")
-        if not stored_embedding:
-            continue
+    result = _llm_duplicate_check(new_complaint, candidates)
 
-        # Parse if stored as JSON string
-        if isinstance(stored_embedding, str):
-            try:
-                stored_embedding = json.loads(stored_embedding)
-            except Exception:
-                continue
-
-        # Compute scores
-        text_sim = cosine_similarity(new_embedding, stored_embedding)
-        loc_sim = location_similarity(new_location, comp.get("location", ""))
-        cat_match = new_category.strip().lower() == comp.get("category", "").strip().lower()
-
-        score = combined_score(text_sim, loc_sim, cat_match)
-
-        if score > best_score:
-            best_score = score
-            best_match = {
-                "complaint": comp,
-                "similarity_score": round(score, 4),
-                "text_similarity": round(text_sim, 4),
-                "location_similarity": round(loc_sim, 4),
-                "category_match": cat_match,
-                "factor_scores": factor_scores(text_sim, loc_sim, cat_match),
-                "reasoning": build_reasoning(
-                    score, text_sim, loc_sim, cat_match,
-                    new_location, comp.get("location", ""),
-                    new_category, comp.get("category", ""),
-                ),
-            }
-
-    if best_match and best_match["similarity_score"] >= threshold:
-        return best_match
+    if result and result["similarity_score"] >= threshold:
+        return result
 
     return None
+
+
+# ─── Stub: kept for API compatibility ─────────────────────────────────────────
+
+def generate_embedding(text: str) -> list:
+    """No longer used. Groq does not provide an embedding endpoint."""
+    return []
