@@ -6,7 +6,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { complaintsApi, ComplaintOut } from "@/lib/api";
+import { complaintsApi, adminApi, ComplaintOut } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
     registered: { label: "Registered", color: "bg-blue-100 text-blue-700 border-blue-200", icon: Clock },
@@ -33,6 +35,10 @@ export default function TrackComplaint() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
+    const { isAdmin } = useAuth();
+    const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [newStatus, setNewStatus] = useState("");
+    const [adminNote, setAdminNote] = useState("");
 
     // Auto-search if ID passed via query param
     useEffect(() => {
@@ -59,6 +65,21 @@ export default function TrackComplaint() {
             setSearched(true);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleUpdateStatus = async () => {
+        if (!complaint || !newStatus) return;
+        setUpdatingStatus(true);
+        try {
+            await adminApi.updateStatus(complaint.id, newStatus, adminNote);
+            toast.success("Status updated successfully");
+            setAdminNote("");
+            handleSearch(complaint.reference_id); // refresh
+        } catch (err: any) {
+            toast.error(err.message || "Failed to update status");
+        } finally {
+            setUpdatingStatus(false);
         }
     };
 
@@ -253,6 +274,50 @@ export default function TrackComplaint() {
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Admin Controls */}
+                    {isAdmin && (
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg p-6">
+                            <h3 className="text-sm font-semibold text-primary flex items-center gap-2 mb-4">
+                                <AlertCircle size={15} />
+                                Admin Actions
+                            </h3>
+                            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+                                <div className="flex-1 space-y-1.5">
+                                    <label className="text-xs font-medium text-foreground">Update Status</label>
+                                    <select
+                                        className="w-full text-sm border-border bg-background rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        value={newStatus || complaint.status}
+                                        onChange={(e) => setNewStatus(e.target.value)}
+                                    >
+                                        <option value="registered">Registered</option>
+                                        <option value="verified">Verified</option>
+                                        <option value="assigned">Assigned</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="resolved">Resolved</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                </div>
+                                <div className="flex-[2] space-y-1.5">
+                                    <label className="text-xs font-medium text-foreground">Add Note / Comment (Optional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Explain the status change..."
+                                        className="w-full text-sm border-border bg-background rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        value={adminNote}
+                                        onChange={(e) => setAdminNote(e.target.value)}
+                                    />
+                                </div>
+                                <Button
+                                    onClick={handleUpdateStatus}
+                                    disabled={updatingStatus || (!newStatus && !adminNote)}
+                                    className="h-10 px-6 shrink-0"
+                                >
+                                    {updatingStatus ? "Updating..." : "Update Case"}
+                                </Button>
                             </div>
                         </div>
                     )}
