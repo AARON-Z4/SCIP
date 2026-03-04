@@ -9,7 +9,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 let supabase: SupabaseClient;
 
 if (supabaseUrl && supabaseAnonKey) {
-    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+            // Compensate for up to 1-hour clock skew between Supabase JWT server
+            // and this client. Error: "Session issued in the future" (skew ~3600s).
+            clockSkewInSeconds: 3700,
+        },
+    });
 } else {
     console.warn(
         "[SCIS] Supabase env vars not set. Google Auth disabled.\n" +
